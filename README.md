@@ -46,3 +46,13 @@ The following table shows the hyperparameters used for the training of all off -
 | Entropy regularization coefficient | Autotune (SAC, TQC) |
 
 **Note**: For `Action size` and `Observation size`, the initial values are 4 and 19 respectively, which means that you do not need to modify them according to different tasks. 
+
+## Success Rate Comparison of TQC+HER and SAC+HER
+| Environment                   | TQC+HER | SAC+HER |
+| ----------------------------- | ------- | ------- |
+| FrankaPushSparse - v0         | 100.00% | 73.33%  |
+| FrankaPushDense - v0          | 100.00% | 0.00%   |
+| FrankaSlideSparse - v0        | 0.00%   | 0.00%   |
+| FrankaSlideDense - v0         | 20.00%  | 0.00%   |
+| FrankaPickAndPlaceSparse - v0 | 100.00% | 0.00%   |
+| FrankaPickAndPlaceDense - v0  | 33.33%  | 46.67%  |
