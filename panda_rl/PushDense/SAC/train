@@ -37,8 +37,8 @@ env = DummyVecEnv([lambda: TerminateOnTruncatedWrapper(gym.make("FrankaPushDense
 
 # 初始化 wandb
 run = wandb.init(
-    entity="yuran-zyh-nus",
-    project="sac-rl",
+    entity="***",
+    project="***",
     config={
         "policy": "MultiInputPolicy",
         "learning_rate": 0.001,
