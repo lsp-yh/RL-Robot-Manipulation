@@ -1,0 +1,127 @@
+import gymnasium as gym
+from stable_baselines3 import SAC
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.her import HerReplayBuffer
+from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.callbacks import EvalCallback
+import wandb
+import sys
+import os
+
+import panda_mujoco_gym  # 注册环境
+
+print(panda_mujoco_gym.__file__)  # 应该显示包的实际路径
+
+
+# 自定义 TerminateOnTruncatedWrapper 包装器
+class TerminateOnTruncatedWrapper(gym.Wrapper):
+    def step(self, action):
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        if truncated:
+            terminated = True
+        return observation, reward, terminated, truncated, info
+
+
+# 使用 gymnasium 注册环境
+if "FrankaPushDense-v0" not in gym.envs.registry:
+    gym.register(
+        id="FrankaPushDense-v0",
+        entry_point="panda_mujoco_gym.envs.push:FrankaPushEnv",
+        max_episode_steps=1000000,
+    )
+
+reward_type = "dense"  # 根据实际情况设置 reward_type 的值
+
+# 使用包装器包装环境
+env = DummyVecEnv([lambda: TerminateOnTruncatedWrapper(gym.make("FrankaPushDense-v0", reward_type=reward_type))])
+
+# 初始化 wandb
+run = wandb.init(
+    entity="yuran-zyh-nus",
+    project="sac-rl",
+    config={
+        "policy": "MultiInputPolicy",
+        "learning_rate": 0.001,
+        "buffer_size": 1000000,
+        "batch_size": 512,
+        "policy_kwargs": {"net_arch": [256, 256, 256]},
+        "replay_buffer_class": "HerReplayBuffer",
+        "replay_buffer_kwargs": {"n_sampled_goal": 4, "goal_selection_strategy": "future"},
+        "tau": 0.05,
+        "gamma": 0.95,
+        "verbose": 1,
+        "ent_coef": 'auto'
+    }
+)
+
+model = SAC(
+    "MultiInputPolicy",
+    env,
+    learning_rate=0.001,
+    buffer_size=1000000,
+    batch_size=512,
+    policy_kwargs=dict(net_arch=[256, 256, 256]),
+    replay_buffer_class=HerReplayBuffer,
+    replay_buffer_kwargs=dict(
+        n_sampled_goal=4,
+        goal_selection_strategy="future",
+    ),
+    tau=0.05,
+    gamma=0.95,
+    verbose=1,
+    ent_coef='auto'
+)
+
+
+class CustomEvalCallback(EvalCallback):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.success_rates = []
+
+    def _on_step(self) -> bool:
+        result = super()._on_step()
+
+        # 添加空列表保护
+        if len(self.evaluations_results) == 0:
+            return result
+
+        # 仅在评估完成后记录
+        if self.eval_freq > 0 and self.n_calls % self.eval_freq == 0:
+            successes = []
+            for episode_data in self.evaluations_results[-1]:
+                _, episode_infos = episode_data
+                if len(episode_infos) > 0:
+                    success = episode_infos[-1].get('is_success', False)
+                    successes.append(success)
+
+            if len(successes) > 0:
+                success_rate = np.mean(successes)
+                wandb.log({
+                    "eval/success_rate": success_rate,
+                    "global_step": self.num_timesteps
+                })
+
+        return result
+
+# 创建评估回调
+eval_env = DummyVecEnv([lambda: Monitor(
+    TerminateOnTruncatedWrapper(gym.make("FrankaPushDense-v0", reward_type=reward_type)), "./eval_logs")])
+
+eval_callback = EvalCallback(
+    eval_env,
+    best_model_save_path="./best_model/",
+    eval_freq=2000,
+    n_eval_episodes=15,
+    deterministic=True,
+    render=False,
+)
+
+# 开始训练
+model.learn(
+    total_timesteps=500000,
+    callback=eval_callback,
+    tb_log_name="sac_franka_push"
+)
+
+# 保存最终模型
+model.save("sac_franka_push_final")
