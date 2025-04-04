@@ -1,68 +1,36 @@
-# Open-Source Reinforcement Learning Environments Implemented in MuJoCo with Franka Manipulator
+You can view the train and test files in the panda_rl folder. 
+src/
+│ —— panda_mujoco_gym/
+│   │   ├── __init__.py
+│   │   └── ...  
+│ ── panda_rl/
+│       └── PushSparse/
+│           └── TQC/
+│               └── train_.py
+│               └── test_.py
+│           └── SAC/
+│               └── train_.py
+│               └── test_.py
 
-This repository is inspired by [panda-gym](https://github.com/qgallouedec/panda-gym.git) and [Fetch](https://robotics.farama.org/envs/fetch/) environments and is developed with the Franka Emika Panda arm in [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) on the MuJoCo physics engine. Three open-source environments corresponding to three manipulation tasks, `FrankaPush`, `FrankaSlide`, and `FrankaPickAndPlace`, where each task follows the Multi-Goal Reinforcement Learning framework. DDPG, SAC, and TQC with HER are implemented to validate the feasibility of each environment. Benchmark results are obtained with [stable-baselines3](https://github.com/DLR-RM/stable-baselines3) and shown below.
-
-There is still a lot of work to be done on this repo, so please feel free to raise an issue and share your idea!
-
-## Tasks
-<div align="center">
-
-`FrankaPushSparse-v0` | `FrankaSlideSparse-v0` | `FrankaPickAndPlaceSparse-v0`
-|:------------------------:|:------------------------:|:------------------------:|
-<img src="./docs/push.gif" alt="" width="200"/> | <img src="./docs/slide.gif" alt="" width="200"/> | <img src="./docs/pnp.gif" alt="" width="200"/>
-</div>
-
-## Benchmark Results
-
-<div align="center">
-
-`FrankaPushSparse-v0` | `FrankaSlideSparse-v0` | `FrankaPickAndPlaceSparse-v0`
-|:------------------------:|:------------------------:|:------------------------:|
-<img src="./docs/FrankaPushSparse-v1.jpg" alt="" width="230"/> | <img src="./docs/FrankaSlideSparse-v1.jpg" alt="" width="230"/> | <img src="./docs/FrankaPickSparse-v1.jpg" alt="" width="230"/>
-
-</div>
-
-## Installation
-
-All essential libraries with corresponding versions are listed in [`requirements.txt`](requirements.txt).
-
-## Test
-
-```python
-import sys
-import time
-import gymnasium as gym
-import panda_mujoco_gym
-
-if __name__ == "__main__":
-    env = gym.make("FrankaPickAndPlaceSparse-v0", render_mode="human")
-
-    observation, info = env.reset()
-
-    for _ in range(1000):
-        action = env.action_space.sample()
-        observation, reward, terminated, truncated, info = env.step(action)
-
-        if terminated or truncated:
-            observation, info = env.reset()
-
-        time.sleep(0.2)
-
-    env.close()
-
-```
-
-## Citation
-
-If you use this repo in your work, please cite:
-
-```
-@misc{xu2023opensource,
-      title={Open-Source Reinforcement Learning Environments Implemented in MuJoCo with Franka Manipulator}, 
-      author={Zichun Xu and Yuntao Li and Xiaohang Yang and Zhiyuan Zhao and Lei Zhuang and Jingdong Zhao},
-      year={2023},
-      eprint={2312.13788},
-      archivePrefix={arXiv},
-      primaryClass={cs.RO}
-}
-```
+I used wandb to record the success rate of each training. Remember to change the entity and project in the train file to your own name.
+TABLE I: Hyperparameters used for the training of all off-policy algorithms
+Parameter                  Value
+Action size                3 (Push, Slide), 4 (Pick & Place,block_gripper 为 False)
+Observation size           18 (Push, Slide), 19 (Pick & Place,block_gripper 为 False)
+Network size               [256, 256, 256] (Pick & Place, Push) / [512, 512, 512] (Slide)
+Batch size                 512 (Pick & Place, Push) / 2048 (Slide)
+Buffer size                1e6
+Action noise               N(0, 0.2) (DDPG, SAC)
+Learning rate              0.001
+Polyak update              0.05
+Discount factor            0.95
+Evaluation frequency       2,000 steps
+Evaluation episodes        15
+Training steps             5e5 (Pick & Place, Push) / 1e6 (Slide)
+HER strategy               Future
+Number of HER per transition 4
+Number of critics          2 (TQC only)
+Quantiles to drop per critic 2 (TQC only)
+Number of quantiles        25 (TQC only)
+Entropy regularization coefficient Autotune (SAC, TQC)
+For Action size and Observation size, the initial values ​​are 4 and 19 respectively, which means that you do not need to be modified according to different tasks.
